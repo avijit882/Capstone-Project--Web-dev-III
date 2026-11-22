@@ -1,0 +1,12 @@
+import { Router } from 'express';
+import { cartController } from '../controllers/index.js';
+import { authenticate, authorize } from '../middleware/auth.js';
+import { validateIdParam } from '../middleware/validate-params.js';
+const router = Router();
+router.use(authenticate, authorize('customer'));
+router.get('/', cartController.get);
+router.post('/items', cartController.add);
+router.patch('/items/:productId', validateIdParam('productId'), cartController.update);
+router.delete('/items/:productId', validateIdParam('productId'), cartController.remove);
+router.delete('/', cartController.clear);
+export default router;

@@ -1,0 +1,29 @@
+digraph CampusCartArchitecture {
+  graph [rankdir=TB, bgcolor="#ffffff", pad="0.35", nodesep="0.38", ranksep="0.55", fontname="Arial", label="CAMPUSCART | BACKEND ARCHITECTURE", labelloc=t, fontsize=22, fontcolor="#17365D"];
+  node [shape=box, style="rounded,filled", color="#2F5597", fillcolor="#EAF2F8", fontname="Arial", fontsize=11, fontcolor="#18324A", margin="0.18,0.12"];
+  edge [color="#51779E", penwidth=1.4, arrowsize=0.8, fontname="Arial", fontsize=9];
+  client [label="Client / Postman\nREST requests + Socket.IO client", fillcolor="#DDEBF7"];
+  subgraph cluster_http {
+    label="HTTP API LAYER"; color="#9FBAD0"; style="rounded,dashed"; fontname="Arial"; fontsize=12; fontcolor="#315A7D";
+    routes [label="Express Routes\n/api/v1/*"];
+    middleware [label="Middleware\nJWT • RBAC • Validation • Rate limit"];
+    controllers [label="Controllers\nHTTP input / output"];
+    routes -> middleware -> controllers;
+  }
+  services [label="Service Layer\nAuthentication • Catalog • Cart • Orders • Reports • Admin", fillcolor="#E2F0D9", color="#548235"];
+  models [label="Mongoose Models\nSchemas • References • Validation • Indexes", fillcolor="#FFF2CC", color="#BF9000"];
+  mongo [shape=cylinder, label="MongoDB Replica Set\n8 collections", fillcolor="#E2F0D9", color="#548235"];
+  subgraph cluster_events {
+    label="REAL-TIME LAYER"; color="#C9B2D8"; style="rounded,dashed"; fontname="Arial"; fontsize=12; fontcolor="#7030A0";
+    emitter [label="Node.js EventEmitter\norder:placed • order:statusChanged\ninventory:lowStock", fillcolor="#F3EAF8", color="#8064A2"];
+    notifications [label="Notification Service\nPersist notification records", fillcolor="#F3EAF8", color="#8064A2"];
+    socket [label="Socket.IO\nAuthenticated user rooms", fillcolor="#F3EAF8", color="#8064A2"];
+    emitter -> notifications -> socket;
+  }
+  client -> routes;
+  controllers -> services;
+  services -> models;
+  models -> mongo;
+  services -> emitter [label="post-commit events", color="#8064A2", fontcolor="#7030A0"];
+  socket -> client [label="real-time updates", color="#8064A2", fontcolor="#7030A0", constraint=false];
+}

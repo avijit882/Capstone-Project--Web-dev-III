@@ -1,0 +1,14 @@
+import { Router } from 'express';
+import { orderController } from '../controllers/index.js';
+import { authenticate, authorize } from '../middleware/auth.js';
+import { validateIdParam } from '../middleware/validate-params.js';
+const router = Router();
+router.post('/checkout', authenticate, authorize('customer'), orderController.checkout);
+router.get('/orders', authenticate, authorize('customer'), orderController.customerList);
+router.get('/orders/:id', authenticate, validateIdParam(), orderController.get);
+router.post('/orders/:id/cancel', authenticate, authorize('customer'), validateIdParam(), orderController.cancel);
+router.get('/seller/orders', authenticate, authorize('seller'), orderController.sellerList);
+router.patch('/seller/orders/:id/status', authenticate, authorize('seller'), validateIdParam(), orderController.sellerUpdateStatus);
+router.get('/admin/orders', authenticate, authorize('admin'), orderController.adminList);
+router.patch('/admin/orders/:id/status', authenticate, authorize('admin'), validateIdParam(), orderController.adminUpdateStatus);
+export default router;

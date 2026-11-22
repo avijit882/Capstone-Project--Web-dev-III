@@ -1,0 +1,49 @@
+name: CampusCart CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NODE_ENV: test
+      JWT_ACCESS_SECRET: ci_access_secret_123456789012345678901234567890
+      JWT_REFRESH_SECRET: ci_refresh_secret_123456789012345678901234567890
+      CLIENT_ORIGIN: http://localhost:5173
+      TEST_MONGODB_URI: mongodb://127.0.0.1:27017/campuscart_ci?replicaSet=rs0
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Start MongoDB replica set
+        run: |
+          docker run -d --name campuscart-mongo-ci -p 27017:27017 mongo:7.0 mongod --replSet rs0 --bind_ip_all
+          for attempt in $(seq 1 30); do
+            if docker exec campuscart-mongo-ci mongosh --quiet --eval 'db.adminCommand({ ping: 1 }).ok' 2>/dev/null | grep -q 1; then
+              break
+            fi
+            sleep 2
+          done
+          docker exec campuscart-mongo-ci mongosh --quiet --eval 'rs.initiate({_id:"rs0",members:[{_id:0,host:"127.0.0.1:27017"}]})'
+          for attempt in $(seq 1 30); do
+            if docker exec campuscart-mongo-ci mongosh --quiet --eval 'db.hello().isWritablePrimary' 2>/dev/null | grep -q true; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "MongoDB replica set did not become primary" >&2
+          exit 1
+      - name: Check JavaScript syntax
+        run: npm run check
+      - name: Run API and Socket.IO integration tests
+        run: npm test

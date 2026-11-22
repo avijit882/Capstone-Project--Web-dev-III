@@ -1,0 +1,21 @@
+digraph CheckoutFlow {
+  graph [rankdir=TB, bgcolor="#ffffff", pad="0.35", nodesep="0.35", ranksep="0.45", fontname="Arial", label="CAMPUSCART | TRANSACTIONAL CHECKOUT FLOW", labelloc=t, fontsize=20, fontcolor="#17365D"];
+  node [shape=box, style="rounded,filled", fillcolor="#EAF2F8", color="#2F5597", fontname="Arial", fontsize=10, fontcolor="#18324A", margin="0.16,0.1"];
+  edge [color="#51779E", penwidth=1.3, arrowsize=0.75, fontname="Arial", fontsize=9];
+  start [label="Customer submits checkout", fillcolor="#DDEBF7"];
+  begin [label="Start MongoDB transaction"];
+  load [label="Load cart and current product records"];
+  validate [label="Validate active products, sellers, current prices\nand requested quantities"];
+  group [label="Group cart lines by seller\nGenerate checkoutGroupId"];
+  stock [label="Conditionally decrement stock\n(stock >= requested quantity)"];
+  movement [label="Insert inventory movement records"];
+  orders [label="Create one seller-specific order per seller\nwith immutable item price/name/SKU snapshots"];
+  clear [label="Clear customer cart"];
+  commit [label="Commit transaction", fillcolor="#E2F0D9", color="#548235"];
+  event [label="Emit order:placed / low-stock events\nafter successful commit", fillcolor="#F3EAF8", color="#8064A2"];
+  response [label="Return checkoutGroupId and created orders", fillcolor="#DDEBF7"];
+  abort [label="Abort transaction\nNo partial order/stock/cart changes", fillcolor="#FCE4D6", color="#C65911"];
+  start -> begin -> load -> validate -> group -> stock -> movement -> orders -> clear -> commit -> event -> response;
+  validate -> abort [label="invalid / unavailable", color="#C65911", fontcolor="#C65911"];
+  stock -> abort [label="insufficient stock", color="#C65911", fontcolor="#C65911"];
+}

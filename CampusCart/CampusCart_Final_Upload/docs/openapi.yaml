@@ -1,0 +1,234 @@
+openapi: 3.1.0
+info:
+  title: CampusCart API
+  version: 1.0.0
+  description: Multi-vendor commerce backend. Payment is simulated and not integrated.
+servers:
+  - url: http://localhost:5000/api/v1
+security:
+  - bearerAuth: []
+paths:
+  /auth/register:
+    post:
+      security: []
+      summary: Register a customer or pending seller
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name: {type: string, minLength: 2}
+                email: {type: string, format: email}
+                password: {type: string, minLength: 10, maxLength: 72}
+                role: {type: string, enum: [customer, seller]}
+                phone: {type: string}
+      responses:
+        '201': {description: Account created}
+        '409': {description: Email already registered}
+        '422': {description: Validation failure}
+  /auth/login:
+    post:
+      security: []
+      summary: Login and issue tokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: {type: string, format: email}
+                password: {type: string}
+      responses:
+        '200': {description: Login successful}
+        '401': {description: Invalid credentials}
+  /auth/refresh:
+    post:
+      security: []
+      summary: Rotate refresh token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object, required: [refreshToken], properties: {refreshToken: {type: string}}}
+      responses:
+        '200': {description: New access and refresh tokens}
+        '401': {description: Invalid, expired or reused token}
+  /auth/logout:
+    post:
+      security: []
+      summary: Revoke refresh token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object, required: [refreshToken], properties: {refreshToken: {type: string}}}
+      responses: {'200': {description: Logged out}}
+  /auth/me:
+    get:
+      summary: Current user profile
+      responses: {'200': {description: Current profile}}
+    patch:
+      summary: Update profile
+      responses: {'200': {description: Profile updated}}
+  /categories:
+    get:
+      security: []
+      summary: List active categories
+      responses: {'200': {description: Category list}}
+    post:
+      summary: Create category (admin)
+      responses: {'201': {description: Category created}, '403': {description: Forbidden}}
+  /categories/{id}:
+    parameters:
+      - {$ref: '#/components/parameters/id'}
+    patch:
+      summary: Update category (admin)
+      responses: {'200': {description: Category updated}}
+    delete:
+      summary: Deactivate category (admin)
+      responses: {'200': {description: Category deactivated}, '409': {description: Active products still use category}}
+  /products:
+    get:
+      security: []
+      summary: Search/filter/paginate active products
+      parameters:
+        - {in: query, name: q, schema: {type: string}}
+        - {in: query, name: category, schema: {type: string}}
+        - {in: query, name: seller, schema: {type: string}}
+        - {in: query, name: minPrice, schema: {type: number}}
+        - {in: query, name: maxPrice, schema: {type: number}}
+        - {in: query, name: sort, schema: {type: string, enum: [newest, price_asc, price_desc, name]}}
+        - {in: query, name: page, schema: {type: integer, minimum: 1}}
+        - {in: query, name: limit, schema: {type: integer, minimum: 1, maximum: 100}}
+      responses: {'200': {description: Product list}}
+    post:
+      summary: Create product (approved seller)
+      responses: {'201': {description: Product created}, '403': {description: Seller approval required}}
+  /products/{id}:
+    parameters:
+      - {$ref: '#/components/parameters/id'}
+    get:
+      security: []
+      summary: Get active product
+      responses: {'200': {description: Product details}, '404': {description: Not found}}
+    patch:
+      summary: Update own product (seller) or product (admin)
+      responses: {'200': {description: Product updated}, '403': {description: Not owner}}
+    delete:
+      summary: Deactivate product
+      responses: {'200': {description: Product deactivated}}
+  /products/{id}/inventory:
+    parameters:
+      - {$ref: '#/components/parameters/id'}
+    post:
+      summary: Adjust stock (owner seller/admin)
+      responses: {'200': {description: Stock changed and movement recorded}, '409': {description: Insufficient stock}}
+  /cart:
+    get:
+      summary: Get customer cart
+      responses: {'200': {description: Cart contents}}
+    delete:
+      summary: Clear customer cart
+      responses: {'200': {description: Cart cleared}}
+  /cart/items:
+    post:
+      summary: Add item to customer cart
+      responses: {'201': {description: Item added}, '409': {description: Quantity exceeds stock}}
+  /cart/items/{productId}:
+    parameters:
+      - {in: path, name: productId, required: true, schema: {type: string}}
+    patch:
+      summary: Update cart item quantity
+      responses: {'200': {description: Quantity updated}}
+    delete:
+      summary: Remove cart item
+      responses: {'200': {description: Item removed}}
+  /checkout:
+    post:
+      summary: Transactional multi-vendor checkout
+      responses: {'201': {description: Seller-specific orders created and stock decremented}, '409': {description: Product unavailable or insufficient stock}}
+  /orders:
+    get:
+      summary: List own customer orders
+      responses: {'200': {description: Paginated orders}}
+  /orders/{id}:
+    parameters:
+      - {$ref: '#/components/parameters/id'}
+    get:
+      summary: Get order (owning customer/seller/admin)
+      responses: {'200': {description: Order details}, '403': {description: Not authorized}}
+  /orders/{id}/cancel:
+    parameters:
+      - {$ref: '#/components/parameters/id'}
+    post:
+      summary: Cancel pending/confirmed order and restore stock
+      responses: {'200': {description: Cancelled}, '409': {description: Invalid status}}
+  /seller/orders:
+    get:
+      summary: List seller's orders
+      responses: {'200': {description: Seller order list}}
+  /seller/orders/{id}/status:
+    parameters:
+      - {$ref: '#/components/parameters/id'}
+    patch:
+      summary: Advance seller order status
+      responses: {'200': {description: Status updated}, '409': {description: Invalid transition}}
+  /reports/sales:
+    get:
+      summary: Gross order value and daily order-value analytics
+      responses: {'200': {description: Summary and daily trend}}
+  /reports/top-products:
+    get:
+      summary: Best-selling products aggregation
+      responses: {'200': {description: Product unit and order-value ranking}}
+  /reports/inventory:
+    get:
+      summary: Category inventory aggregation
+      responses: {'200': {description: Category stock and low-stock totals}}
+  /admin/users:
+    get:
+      summary: List users (admin)
+      responses: {'200': {description: Paginated users}}
+  /admin/orders:
+    get:
+      summary: List all orders (admin)
+      responses: {'200': {description: Paginated platform orders}}
+  /admin/orders/{id}/status:
+    parameters:
+      - {$ref: '#/components/parameters/id'}
+    patch:
+      summary: Admin updates order status following valid transitions
+      responses: {'200': {description: Status updated}, '409': {description: Invalid transition}}
+  /admin/sellers/{id}/status:
+    parameters:
+      - {$ref: '#/components/parameters/id'}
+    patch:
+      summary: Approve or suspend seller
+      responses: {'200': {description: Seller status updated}}
+  /notifications:
+    get:
+      summary: List own notifications
+      responses: {'200': {description: Paginated notifications}}
+  /notifications/{id}/read:
+    parameters:
+      - {$ref: '#/components/parameters/id'}
+    patch:
+      summary: Mark own notification read
+      responses: {'200': {description: Notification updated}}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    id:
+      in: path
+      name: id
+      required: true
+      schema: {type: string, pattern: '^[a-fA-F0-9]{24}$'}

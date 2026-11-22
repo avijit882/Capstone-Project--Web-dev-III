@@ -1,0 +1,18 @@
+digraph RealtimeFlow {
+  graph [rankdir=LR, bgcolor="#ffffff", pad="0.35", nodesep="0.42", ranksep="0.55", fontname="Arial", label="CAMPUSCART | EVENT & REAL-TIME NOTIFICATION FLOW", labelloc=t, fontsize=20, fontcolor="#17365D"];
+  node [shape=box, style="rounded,filled", fillcolor="#EAF2F8", color="#2F5597", fontname="Arial", fontsize=10, fontcolor="#18324A", margin="0.16,0.1"];
+  edge [color="#51779E", penwidth=1.3, arrowsize=0.75, fontname="Arial", fontsize=9];
+  business [label="Business service\ntransaction commits"];
+  emitter [label="Node.js EventEmitter\norder:placed\norder:statusChanged\ninventory:lowStock", fillcolor="#F3EAF8", color="#8064A2"];
+  listener [label="Event listener\nresolve recipient + message"];
+  persist [shape=cylinder, label="MongoDB\nnotifications", fillcolor="#E2F0D9", color="#548235"];
+  room [label="Socket.IO user room\nuser:<userId>", fillcolor="#F3EAF8", color="#8064A2"];
+  user [label="Authenticated connected\ncustomer / seller / admin", fillcolor="#DDEBF7"];
+  offline [label="Offline recipient\nnotification remains stored", fillcolor="#FFF2CC", color="#BF9000"];
+  business -> emitter [label="emit after commit"];
+  emitter -> listener;
+  listener -> persist [label="create record"];
+  persist -> room [label="emit notification:new"];
+  room -> user [label="deliver to room"];
+  persist -> offline [label="later REST retrieval", style=dashed];
+}

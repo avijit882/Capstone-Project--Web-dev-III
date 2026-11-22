@@ -1,0 +1,10 @@
+import {EventEmitter} from 'node:events';
+import {Server} from 'socket.io';
+import jwt from 'jsonwebtoken';
+import {env} from './config/env.js';
+import {User,Notification} from './models/index.js';
+export const events=new EventEmitter();
+let io;
+async function notify(userId,type,title,message,data={}){const n=await Notification.create({user:userId,type,title,message,data});io?.to(`user:${userId}`).emit('notification:new',n);return n}
+function listen(){events.on('order:placed',({order})=>notify(order.seller,'order_placed','New order received',`A new order (${order._id}) was placed.`,{orderId:order._id}).catch(console.error));events.on('order:statusChanged',({order})=>notify(order.customer,'order_status','Order status updated',`Your order is now ${order.status}.`,{orderId:order._id,status:order.status}).catch(console.error));events.on('inventory:lowStock',({product})=>{const message=`${product.name} has ${product.stock} unit(s) remaining.`;notify(product.seller,'low_stock','Low stock alert',message,{productId:product._id,stock:product.stock}).catch(console.error);User.find({role:'admin',status:'active'}).select('_id').then(xs=>Promise.all(xs.map(u=>notify(u._id,'low_stock','Platform low-stock alert',message,{productId:product._id,sellerId:product.seller,stock:product.stock})))).catch(console.error)})}
+export function makeSocketServer(server){io=new Server(server,{cors:{origin:env.CLIENT_ORIGIN.split(',').map(x=>x.trim()),methods:['GET','POST'],credentials:true}});io.use(async(s,next)=>{try{const token=s.handshake.auth?.token;if(!token)return next(new Error('Authentication token required'));const p=jwt.verify(token,env.JWT_ACCESS_SECRET);const u=await User.findById(p.sub);if(!u||u.status!=='active')return next(new Error('Account unavailable'));if(p.sessionVersion!==(u.sessionVersion??0))return next(new Error('Session has been revoked'));s.data.user={id:u._id.toString(),role:u.role};next()}catch{return next(new Error('Invalid socket token'))}});io.on('connection',s=>{s.join(`user:${s.data.user.id}`);if(s.data.user.role==='seller')s.join(`seller:${s.data.user.id}`);s.emit('connection:ready',{userId:s.data.user.id})});listen();return io}

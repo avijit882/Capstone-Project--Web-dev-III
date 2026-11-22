@@ -1,0 +1,16 @@
+import { Router } from 'express';
+import { categoryController, productController } from '../controllers/index.js';
+import { authenticate, authorize } from '../middleware/auth.js';
+import { validateIdParam } from '../middleware/validate-params.js';
+const router = Router();
+router.get('/categories', categoryController.list);
+router.post('/categories', authenticate, authorize('admin'), categoryController.create);
+router.patch('/categories/:id', authenticate, authorize('admin'), validateIdParam(), categoryController.update);
+router.delete('/categories/:id', authenticate, authorize('admin'), validateIdParam(), categoryController.remove);
+router.get('/products', productController.list);
+router.get('/products/:id', validateIdParam(), productController.get);
+router.post('/products', authenticate, authorize('seller'), productController.create);
+router.patch('/products/:id', authenticate, authorize('seller', 'admin'), validateIdParam(), productController.update);
+router.delete('/products/:id', authenticate, authorize('seller', 'admin'), validateIdParam(), productController.remove);
+router.post('/products/:id/inventory', authenticate, authorize('seller', 'admin'), validateIdParam(), productController.adjustStock);
+export default router;

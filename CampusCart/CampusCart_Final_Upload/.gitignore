@@ -1,0 +1,34 @@
+# Dependencies and build output
+node_modules/
+coverage/
+dist/
+build/
+
+# Local secrets and environment configuration
+.env
+.env.*
+!.env.example
+
+# Logs and runtime files
+*.log
+npm-debug.log*
+yarn-debug.log*
+.DS_Store
+Thumbs.db
+
+# Editor / OS files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Local database volumes and temporary test output
+.mongo-data/
+tmp/
+
+# Local evidence exports (keep documented PNG diagrams in docs/figures)
+
+# Temporary source references for finalization (keep outside public submission)
+reference/
+*_REFERENCE_ONLY.*
+reference_materials/
